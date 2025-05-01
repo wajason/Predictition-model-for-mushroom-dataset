@@ -1,0 +1,1438 @@
+---
+# 定義報告屬性-YAML metadata
+
+title: "HW_Group1"
+subtitle: "Predictition model for mushroom dataset"
+date: today
+author: jason
+format:
+  pdf:
+    pdf-engine: xelatex
+    documentclass: ctexart
+    classoption: fontset=none
+    include-in-header:
+      - text: |
+          \usepackage{fontspec}
+          \setmainfont{Microsoft JhengHei}
+          \setCJKmainfont{Microsoft JhengHei}
+          \usepackage{geometry}
+          \geometry{verbose,tmargin=2.5cm,bmargin=2.5cm,lmargin=2.5cm,rmargin=2.5cm}
+          \usepackage{setspace}
+          \usepackage{relsize}
+          \usepackage{booktabs}
+          \usepackage{float}
+          \usepackage{array}
+          \usepackage{longtable}
+          \usepackage{multirow}
+          \usepackage{colortbl}
+          \usepackage{wrapfig}
+          \usepackage{threeparttable}
+          \usepackage{threeparttablex}
+          \usepackage[normalem]{ulem}
+          \usepackage{makecell}
+toc: true                      # 是否顯示目錄
+lang: zh-Tw
+documentclass: article         # 設置 LaTeX 文檔類型:article（標準學術文章格式）、report（較長的報告格式）、book（適合書籍或長篇報告）。
+pdf-engine: xelatex            # PDF 編譯引擎:xelatex（支持中文，推薦）
+execute:
+  tidy: true                   # 格式化輸出
+  echo: true                   # 顯示代碼
+  warning: false               # 隱藏警告
+  message: false               # 隱藏訊息
+---
+
+## 一、Data Dictionary
+```{r echo=FALSE}
+#| label: Data Dictionary
+library(tibble)
+library(knitr)
+library(grid)
+library(png)
+
+# 建立 Data Dictionary
+data_dict <- tribble(
+  ~Variable, ~DataType, ~Definition, ~Note,
+  "family", "String", "Name of the family of mushroom species", "Multinomial",
+  "name", "String", "Mushroom species name", "Multinomial",
+  "class", "Binary", "poisonous=p, edibile=e", "Binary",
+  "cap-diameter", "Float, Metric data", "Cap diameter in cm", "[Min, max] or mean",
+  "cap-shape", "Nominal data", "Shape of the cap", "bell=b, conical=c, convex=x, flat=f, sunken=s, spherical=p, others=o",
+  "cap-surface", "Nominal data", "Surface type of the cap", "fibrous=i, grooves=g, scaly=y, smooth=s, shiny=h, leathery=l, silky=k, sticky=t, wrinkled=w, fleshy=e",
+  "cap-color", "Nominal data", "Color of the cap", "brown=n, buff=b, gray=g, green=r, pink=p, purple=u, red=e, white=w, yellow=y, blue=l,  orange=o,  black=k",
+  "does-bruise-bleed", "Nominal data", "Bruising or bleeding", "t=yes, f=no",
+  "gill-attachment", "Nominal data", "Attachment of the gills", "adnate=a, adnexed=x, decurrent=d, free=e, sinuate=s, pores=p, none=f, unknown=?",
+  "gill-spacing", "Nominal data", "Spacing between gills", "close=c, distant=d, none=f",
+  "gill-color", "Nominal data", "Color of the gills", "brown=n, buff=b, gray=g, green=r, pink=p, purple=u, red=e, white=w, yellow=y, blue=l,  orange=o,  black=k, none=f",
+  "stem-height", "Float, Metric data", "Height of the stem in cm", "[Min, max] or mean",
+  "stem-width", "Float, Metric data", "Width of the stem in mm", "[Min, max] or mean",
+  "stem-root", "Nominal data", "Root type of the stem", "bulbous=b, swollen=s, club=c, cup=u, equal=e, rhizomorphs=z, rooted=r",
+  "stem-surface", "Nominal data", "Surface type of the stem", "fibrous=i, grooves=g, scaly=y, smooth=s, shiny=h, leathery=l, silky=k, sticky=t, wrinkled=w, fleshy=e, none=f",
+  "stem-color", "Nominal data", "Color of the stem", "brown=n, buff=b, gray=g, green=r, pink=p, purple=u, red=e, white=w, yellow=y, blue=l,  orange=o,  black=k, none=f",
+  "veil-type", "Nominal data", "Type of veil", "p=partial, u=universal",
+  "veil-color", "Nominal data", "Color of the veil", "brown=n, buff=b, gray=g, green=r, pink=p, purple=u, red=e, white=w, yellow=y, blue=l,  orange=o,  black=k, none=f",
+  "has-ring", "Nominal data", "Presence of a ring", "t=yes, f=no",
+  "ring-type", "Nominal data", "Type of ring", "cobwebby=c, evanescent=e, flaring=r, grooved=g, large=l, pendant=p, sheathing=s, zone=z, scaly=y, movable=m, none=f, unknown=?",
+  "spore-print-color", "Nominal data", "Color of spore-print", "brown=n, buff=b, gray=g, green=r, pink=p, purple=u, red=e, white=w, yellow=y, blue=l,  orange=o,  black=k",
+  "habitat", "Nominal data", "Habitat type", "grasses=g, leaves=l, meadows=m, paths=p, heaths=h, urban=u, waste=w, woods=d",
+  "season", "Nominal data", "Season of occurrence", "spring=s, summer=u, autumn=a, winter=w"
+)
+
+# 產生 Data Dictionary 表格
+kable(data_dict, caption = "Mushroom Dataset Data Dictionary")
+
+# 讀取圖片
+img <- readPNG("C:/Users/user/Downloads/mushroom.png")
+
+# 顯示圖片
+grid.raster(img)
+```
+## 二、讀取資料
+
+
+```{r}
+#| label: 載入資料
+# R Interface to Python
+library(reticulate)               # Make R and Python interoperable
+
+# Finding Anaconda's Python path
+use_python("C:/Users/user/anaconda3/python.exe", required = TRUE)  
+# py_config()
+
+
+library(Hmisc)                    # data analysis and report tools
+library(ggplot2)                  # a system for creating graphics
+library(tableone)                 # a tool for creating tableone
+```
+
+
+```{r}
+# install.packages("caret")
+# install.packages("ggplot2")
+# install.packages("brglm2")
+# install.packages("randomForest")
+# install.packages("xgboost")
+```
+
+
+
+```{python}
+#| label: 安裝所需套件
+# !pip install tableone
+# ! pip install scikit-learn
+# ! pip install tensorflow
+# ! pip install lightgbm
+# ! pip install imblearn
+```
+
+```{python}
+#| label: 安裝各種套件
+import re  # Regular expressions (text processing)
+import numpy as np  # Numerical computing
+import pandas as pd  # Data analysis
+import seaborn as sns  # Data visualization
+import tensorflow as tf  # Deep learning framework
+from tensorflow import keras  # High-level API for TensorFlow
+from tableone import TableOne  # Summary tables for data analysis
+import matplotlib.pyplot as plt  # Plotting library
+from tensorflow.keras import layers, regularizers  # Keras layers & regularization
+# Split dataset and calculate val score
+from sklearn.model_selection import train_test_split, cross_val_score  
+from sklearn.preprocessing import LabelEncoder  # Encode categorical data
+from sklearn.preprocessing import StandardScaler  # Standardize features
+from sklearn.metrics import accuracy_score, classification_report  # Model evaluation
+from sklearn.ensemble import RandomForestClassifier  # Machine learning classifier
+from tensorflow.keras import backend as K  # Low-level TensorFlow operations
+from xgboost import XGBClassifier         # XGBoost 分類器套件  
+from lightgbm import LGBMClassifier       # LightGBM 分類器套件
+from sklearn.linear_model import LogisticRegression # 邏輯回歸套件
+```
+
+
+
+```{r echo=FALSE}
+# 清除並重新設置 Python 環境
+# reticulate::py_discover_config()
+# reticulate::use_python("C:/Users/user/anaconda3/python.exe", required = TRUE)
+
+```
+
+
+## 三、資料前處理-轉換為結構化資料
+```{python}
+#| label: 資料前處理
+#| colab: [object Object]
+
+# read CSV 
+file_path = "C:/Users/user/Downloads/primary_data.csv"
+
+with open(file_path, "r", encoding="utf-8") as file:
+    raw_lines = file.readlines()
+
+# get the feature name
+header = raw_lines[0].strip().split(";")  # the first row
+
+# processing data
+data = []
+for line in raw_lines[1:]:
+    values = line.strip().split(";")  # spilt by `;`
+    if len(values) != len(header):
+        values += [""] * (len(header) - len(values))
+
+    # handing `[]` ，let [10 20] to '10, 20'
+    cleaned_values = [re.sub(r"\[|\]", "", v).replace("\t", " ") for v in values]
+    data.append(cleaned_values)
+
+# make a DataFrame
+df1 = pd.DataFrame(data, columns=header)
+```
+
+
+## 四、資料描述
+```{r}
+#| label: 讀取資料2
+#| results: asis
+# read dataset
+df <- read.csv("C:/Users/user/Downloads/primary_data_cleaned.csv")
+# data description
+latex(describe(df), descript = "descriptive statistics", file = '', caption.placement = 'top')
+```
+
+
+## 五、tableone
+```{r}
+#| label: 生成 Table 1
+
+library(table1)
+
+df <- read.csv("C:/Users/user/Downloads/primary_data_cleaned.csv")
+
+# 直接生成 Table1，Quarto 會自動轉為 LaTeX 格式
+table1(~ gill_attachment + gill_spacing + stem_root + habitat + season + family | class,
+data = df)
+```
+
+## 六、視覺化圖表分析
+```{python}
+#| label: class圖表
+#| colab: [object Object]
+
+import pandas as pd
+import matplotlib.pyplot as plt
+import seaborn as sns
+
+# read CSV
+df = pd.read_csv("C:/Users/user/Downloads/primary_data_cleaned.csv")
+
+# print class's counts
+print(df['class'].value_counts())
+
+# make class distribution
+plt.figure(figsize=(6, 4))
+ax = sns.countplot(data=df, x="class", palette="pastel")
+plt.title("Class Distribution")
+plt.xlabel("Class")
+plt.ylabel("Count")
+
+# add the umber on the chart
+for p in ax.patches:
+    plt.text(p.get_x() + p.get_width() / 2., p.get_height(), 
+             f'{p.get_height():.0f}', 
+             ha='center', va='bottom', fontsize=12, color='black')
+
+# show the chart
+plt.show()
+```
+from this chart,we can see that there are 96 poisonous and 77 edibile.
+
+```{r}
+#| label: ggpairs
+
+library(GGally)
+library(ggplot2)
+
+# read CSV
+df <- read.csv("C:/Users/user/Downloads/processed_data11.csv")
+
+# select the numerical_columns
+numerical_columns <- sapply(df, is.numeric)
+
+# create a ggpairs chart
+plot <- ggpairs(df[, numerical_columns],
+                upper = list(continuous = wrap("cor", size = 3)),  # cor-plot size
+                lower = list(continuous = wrap("points", alpha = 0.5, size = 0.5)),  # pointsize
+                title = "GGpairs Plot") + 
+        theme(text = element_text(size = 8))  # textsize
+
+# show the plot
+print(plot)
+```
+
+```{python}
+
+import matplotlib.pyplot as plt
+import seaborn as sns
+
+# select the categorical_columns
+categorical_columns = ['family', 'class', 'cap-diameter', 'cap-shape', 'Cap-surface', 'cap-color', 
+                       'does-bruise-or-bleed', 'gill_attachment', 'gill_spacing', 'gill-color', 
+                       'stem-height', 'stem-width', 'stem-surface', 'stem-color', 'has-ring', 
+                       'ring-type', 'habitat', 'season']
+
+# df1 = pd.read_csv("C:/Users/user/Downloads/primary_data_cleaned.csv")
+
+# create a 6×3 chart
+fig, axes = plt.subplots(nrows=6, ncols=3, figsize=(80, 120))  # chartsize
+axes = axes.flatten()  # Flatten a 2D array to 1D
+
+# create all the chart
+for i, column in enumerate(categorical_columns):
+    ax = sns.countplot(data=df, x=column, ax=axes[i])
+    ax.set_title(f'Frequency of {column}', fontsize=90)  # set title
+    ax.tick_params(axis='x', rotation=90, labelsize=60)  # rotation and labelsize
+
+    # add the umber on the chart
+    for p in ax.patches:
+        ax.annotate(f'{int(p.get_height())}',
+                    (p.get_x() + p.get_width() / 2., p.get_height()),
+                    ha='center', va='center',
+                    fontsize=60, color='black',
+                    xytext=(0, 5), textcoords='offset points')
+
+# Adjust layout
+plt.tight_layout()
+
+# show the chart
+plt.show()
+```
+
+## 七、資料前處理-補值+encoding
+```{python}
+#| label: 缺失值統計
+
+df = pd.read_csv("C:/Users/user/Downloads/primary_data_cleaned.csv")
+# calcute the missing values
+missing_values = df.isnull().sum()
+print("缺失值統計")
+print(missing_values[missing_values > 0])
+```
+
+```{python}
+#| label: 前處理檔案生成
+
+import pandas as pd
+import numpy as np
+from sklearn.preprocessing import LabelEncoder
+from sklearn.experimental import enable_iterative_imputer
+from sklearn.impute import IterativeImputer
+
+
+df=pd.read_csv("C:/Users/user/Downloads/primary_data_cleaned.csv")
+# mice impution
+# select the numberical feature
+numerical_columns = ['cap-diameter', 'stem-height', 'stem-width']  
+
+def convert_range_to_median(value):
+    if pd.isna(value):
+        return np.nan
+    if isinstance(value, str) and ',' in value:
+        try:
+            values = [float(x.strip()) for x in value.split(',')]
+            return np.median(values)
+        except:
+            return np.nan
+    try:
+        return float(value)
+    except:
+        return np.nan
+
+# convert to median
+for col in numerical_columns:
+    df[col] = df[col].apply(convert_range_to_median)
+
+# use MICE stagety
+imputer = IterativeImputer(random_state=0)
+df[numerical_columns] = imputer.fit_transform(df[numerical_columns])
+
+# Label Encoding
+label_columns = ['family', 'class', 'does-bruise-or-bleed', 'gill_attachment', 'has-ring']
+label_encoder = LabelEncoder()
+
+for col in label_columns:
+    # if it have nan, change it to missing
+    df[col] = df[col].fillna('missing')
+    df[col] = label_encoder.fit_transform(df[col].astype(str))
+
+# delete the missing feature
+columns_to_drop = ['veil-type', 'veil-color', 'Spore-print-color', 'stem-surface',
+'stem_root', 'name']
+df.drop(columns=[col for col in columns_to_drop if col in df.columns], inplace=True)
+
+# 4. One-Hot Encoding
+multi_columns = ['cap-shape', 'Cap-surface', 'cap-color', 'gill_spacing', 'gill-color',
+                 'stem-color', 'ring-type', 'season', 'habitat']
+
+for col in multi_columns:
+    if col in df.columns:
+        # fill in nan
+        df[col] = df[col].fillna('').astype(str)  # 確保轉成字串
+        # split the multi column
+        dummies = df[col].str.split(',', expand=True).stack().str.strip()
+        dummies = pd.get_dummies(dummies, prefix=col)
+        # groupby it
+        dummies = dummies.groupby(level=0).sum()
+        # concat to DataFrame
+        df = pd.concat([df, dummies], axis=1)
+        # drop the original column
+        df.drop(columns=[col], inplace=True)
+
+# know that how size is it
+print("資料大小：", df.shape)
+
+# get the processed_data1
+df.to_csv('processed_data1.csv', index=False)
+```
+I first use MICE (IterativeImputer) to fill in the values. MICE (Multiple Imputation by Chained Equations) can infer missing values based on other numerical features, which is more accurate than simple mean filling.
+
+Then because of cap-diameter, stem-height, stem-width
+Some of these numerical features are in range format, so I designed a function convert_range_to_median for subsequent processing. If it is a range (, separated), the median is calculated to fill the value. If it cannot be parsed, it is set to NaN to facilitate subsequent value filling.
+
+Next, we use Label Encoding to process categorical data because they have fewer categories, such as family, class, does-bruise-or-bleed, gill-attachment, has-ring. If there are NaN values, they will be filled with 'missing' to avoid LabelEncoder errors.
+
+Then we remove unimportant features or features with too many missing values, such as: veil-type, veil-color, pore-print-color, stem-surface, stem_root, name → These features may not contain enough information or cannot be directly quantified, so they are removed to simplify the model.
+
+One-Hot Encoding is also used. The processing method for this part is special because some features (such as cap-shape, cap-surface, cap-color, gill-spacing...) may be multi-valued (comma-separated), for example: cap-color, season, etc. Therefore, I did the following steps to fill NaN with "" (empty string) to avoid str.split() errors. str.split(',') splits into multiple categories and then expands into multiple lines (stack()). Use pd.get_dummies() for One-Hot Encoding and convert it to 0/1 features. Use groupby(level=0).sum() to merge multiple rows of results back into the original DataFrame. Delete the original feature field to avoid duplication.
+
+Finally, output the data size (df.shape) to check the final number of features and confirm whether One-Hot Encoding successfully added new features. Save it as processed_data1.csv for subsequent modeling.
+
+
+## 八、模型訓練比較
+
+```{r}
+#| label: linear models預測
+
+# read dataset
+df <- read.csv("C:/Users/user/Downloads/processed_data1.csv")
+
+model <- lm(class ~., df)
+summary(model)
+```
+在原始的未進行預處理的資料中包含89個變數，經由linear models訓練，從結果可見，Multiple R-squared僅有0.4815，預測表現不是那麼好。
+
+
+
+
+```{r}
+#| label: stepAIC() _BIC
+
+library(MASS)
+library(caret)
+library(detectseparation)
+
+# 讀取資料
+df <- read.csv("C:/Users/user/Downloads/processed_data1.csv")
+df$class <- as.factor(df$class)
+
+# 分割資料
+set.seed(66)
+trainIndex <- createDataPartition(df$class, p = 0.7, list = FALSE)
+train_data <- df[trainIndex, ]
+test_data <- df[-trainIndex, ]
+
+# 合併稀疏層次（出現次數少於 5 次的層次合併為 "Other"）
+for (col in names(train_data)) {
+  if (is.factor(train_data[[col]]) && col != "class") {
+    freq <- table(train_data[[col]])
+    train_data[[col]] <- as.character(train_data[[col]])
+    train_data[[col]][freq[train_data[[col]]] < 5] <- "Other"
+    train_data[[col]] <- as.factor(train_data[[col]])
+    
+    test_data[[col]] <- as.character(test_data[[col]])
+    test_data[[col]][freq[test_data[[col]]] < 5] <- "Other"
+    test_data[[col]] <- as.factor(test_data[[col]])
+  }
+}
+
+# 檢查分離問題
+# 提取響應變數 y 和設計矩陣 x
+y <- as.numeric(train_data$class) - 1  # 將 class 轉為 0/1（二項分佈需要）
+x <- model.matrix(class ~ . - 1, data = train_data)  # 不包含截距
+
+# 使用 detect_separation
+separation_result <- detect_separation(x = x, y = y, family = binomial())
+print(separation_result)
+
+
+# 建模
+initial_model <- glm(class ~ ., data = train_data, family = binomial)
+
+# 使用 backward selection
+stepwise_bic <- stepAIC(initial_model, direction = "backward", k = log(nrow(train_data)),
+trace = FALSE)
+summary(stepwise_bic)
+
+# 提取選擇的變數
+selected_vars <- names(coef(stepwise_bic))[-1]
+cat("選擇的變數：", paste(selected_vars, collapse = ", "), "\n")
+
+# 最終模型
+final_formula <- as.formula(paste("class ~", paste(selected_vars, collapse = " + ")))
+final_model <- glm(final_formula, data = train_data, family = binomial)
+
+# 預測
+test_data$pred_prob <- predict(final_model, newdata = test_data, type = "response")
+test_data$pred_class <- ifelse(test_data$pred_prob > 0.5, levels(df$class)[2], levels(df$class)[1])
+
+# 評估
+confusion_matrix <- confusionMatrix(factor(test_data$pred_class, levels = levels(df$class)),
+test_data$class)
+print(confusion_matrix)
+
+accuracy <- confusion_matrix$overall["Accuracy"]
+cat("預測準確率：", round(accuracy * 100, 2), "%\n")
+```
+我們先經過預處理來合併稀疏層次，並將資料劃分成訓練集跟測試集，比例為 70% 和 30%，接著採用邏輯回歸模型進行二元分類，並使用 stepAIC() 進行變數選擇，選擇標準為 BIC。經變數選擇後，模型保留 85 個變數。
+從模型擬合結果來看，殘差偏差Residual deviance（1585.92）遠大於零模型偏差Null deviance（167.52），表明模型可能過擬合。
+預測表現上，模型的準確率為 62.75%，略高於No Information Rate（54.9%），但 p 值（0.1624 > 0.05）顯示模型表現無顯著差異。
+Kappa 統計量為 0.2563，表明模型相較於隨機猜測的改進有限（通常 Kappa > 0.6 表示模型表現較好）。
+
+
+
+```{r}
+#| label: randomForest in r
+library(caret)
+library(randomForest)
+
+# 讀取資料
+df <- read.csv("C:/Users/user/Downloads/processed_data1.csv")
+df$class <- as.factor(df$class)
+
+# 檢查 class 變數是否包含 NA 或無效值
+if (any(is.na(df$class))) {
+  cat("class 變數中包含 NA，移除這些觀測值...\n")
+  df <- df[!is.na(df$class), ]
+}
+
+# 檢查 class 的層次
+cat("class 的層次：", levels(df$class), "\n")
+if (length(levels(df$class)) != 2) {
+  stop("class 必須是二元變數（僅有兩個層次）！")
+}
+
+# 分割資料
+set.seed(66)
+trainIndex <- createDataPartition(df$class, p = 0.7, list = FALSE)
+train_data <- df[trainIndex, ]
+test_data <- df[-trainIndex, ]
+
+# 合併稀疏層次（基於 train_data 的頻率）
+for (col in names(train_data)) {
+  if (is.factor(train_data[[col]]) && col != "class") {
+    freq <- table(train_data[[col]])
+    levels_to_keep <- names(freq[freq >= 10])
+    train_data[[col]] <- as.character(train_data[[col]])
+    train_data[[col]][!train_data[[col]] %in% levels_to_keep] <- "Other"
+    train_data[[col]] <- as.factor(train_data[[col]])
+    
+    test_data[[col]] <- as.character(test_data[[col]])
+    test_data[[col]][!test_data[[col]] %in% levels_to_keep] <- "Other"
+    test_data[[col]] <- as.factor(test_data[[col]])
+    
+    # 確保因子層次一致
+    test_data[[col]] <- factor(test_data[[col]], levels = levels(train_data[[col]]))
+  }
+}
+
+# 檢查數值變數
+numeric_vars <- sapply(train_data, is.numeric)
+numeric_data <- train_data[, numeric_vars]
+
+# 檢查標準差和缺失值
+std_devs <- apply(numeric_data, 2, sd, na.rm = TRUE)
+na_proportions <- colMeans(is.na(numeric_data))
+cat("標準差：\n")
+print(std_devs)
+cat("\n缺失值比例：\n")
+print(na_proportions)
+
+# 移除標準差為零或缺失值比例過高的變數（例如缺失值比例 > 50%）
+vars_to_remove <- names(numeric_data)[std_devs == 0 | na_proportions > 0.5]
+if (length(vars_to_remove) > 0) {
+  cat("移除的變數（標準差為零或缺失值過多）：", vars_to_remove, "\n")
+  train_data <- train_data[, !names(train_data) %in% vars_to_remove]
+  test_data <- test_data[, !names(test_data) %in% vars_to_remove]
+}
+
+# 訓練隨機森林模型（直接使用類別變數，無需 one-hot encoding）
+rf_model <- randomForest(class ~ ., data = train_data, importance = TRUE)
+
+# 顯示特徵重要性
+importance <- importance(rf_model)
+cat("特徵重要性：\n")
+print(importance)
+
+# 選擇重要性最高的特徵（例如前 20 個）
+important_vars <- names(sort(importance[, "MeanDecreaseGini"], decreasing = TRUE))[1:20]
+cat("選擇的重要特徵：", important_vars, "\n")
+
+# 使用選擇的特徵重新訓練模型
+final_formula <- as.formula(paste("class ~", paste(important_vars, collapse = " + ")))
+rf_model_final <- randomForest(final_formula, data = train_data)
+
+# 對 test_data 進行預測
+# 確保 test_data 只包含模型所需的變數
+test_data_subset <- test_data[, c("class", important_vars)]
+
+# 預測
+test_data_subset$pred_class <- predict(rf_model_final, newdata = test_data_subset)
+
+# 評估
+confusion_matrix <- confusionMatrix(test_data_subset$pred_class, test_data_subset$class)
+print(confusion_matrix)
+
+accuracy <- confusion_matrix$overall["Accuracy"]
+cat("預測準確率：", round(accuracy * 100, 2), "%\n")
+```
+一樣將資料劃分成訓練集跟測試集，比例為 70% 和 30%，這次採用採用隨機森林模型（Random Forest）進行二元分類，並根據特徵重要性排序，選擇了 20 個最重要的特徵，並使用這些特徵重新訓練最終的隨機森林模型。
+這次模型的準確率為 76.47%，顯著高於無資訊率No Information Rate（54.9%），且 p 值（0.0012 < 0.05）顯示模型表現與隨機猜測有顯著差異。
+Kappa 統計量為 0.5174，表明模型相較於隨機猜測有較好的改進（0.4-0.6 表示中等偏上的表現）。
+
+
+```{r}
+#| label: xgboost in r
+library(xgboost)
+library(caret)
+
+# 讀取資料
+df <- read.csv("C:/Users/user/Downloads/processed_data1.csv")
+df$class <- as.factor(df$class)
+
+# 確保因子 levels 合法（如 "X0", "X1"）
+levels(df$class) <- make.names(levels(df$class))
+
+# 劃分訓練集與測試集（70% 訓練 / 30% 測試）
+set.seed(66)
+train_idx <- createDataPartition(df$class, p = 0.7, list = FALSE)
+train_data <- df[train_idx, ]
+test_data <- df[-train_idx, ]
+
+# 合併稀疏層次並進行目標編碼
+for (col in names(train_data)) {
+  if (is.factor(train_data[[col]]) && col != "class") {
+    freq <- table(train_data[[col]])
+    levels_to_keep <- names(freq[freq >= 10])
+    train_data[[col]] <- as.character(train_data[[col]])
+    train_data[[col]][!train_data[[col]] %in% levels_to_keep] <- "Other"
+    train_data[[col]] <- as.factor(train_data[[col]])
+    
+    test_data[[col]] <- as.character(test_data[[col]])
+    test_data[[col]][!test_data[[col]] %in% levels_to_keep] <- "Other"
+    test_data[[col]] <- as.factor(test_data[[col]])
+    
+    test_data[[col]] <- factor(test_data[[col]], levels = levels(train_data[[col]]))
+    
+    means <- tapply(as.numeric(train_data$class == levels(train_data$class)[2]), train_data[[col]], mean, na.rm = TRUE)
+    train_data[[col]] <- as.numeric(means[train_data[[col]]])
+    test_data[[col]] <- as.numeric(means[test_data[[col]]])
+  }
+}
+
+# 檢查數值變數並移除標準差為零的變數
+numeric_vars <- sapply(train_data, is.numeric)
+numeric_data <- train_data[, numeric_vars]
+std_devs <- apply(numeric_data, 2, sd, na.rm = TRUE)
+vars_to_remove <- names(numeric_data)[std_devs == 0]
+if (length(vars_to_remove) > 0) {
+  cat("移除的變數（標準差為零）：", vars_to_remove, "\n")
+  train_data <- train_data[, !names(train_data) %in% vars_to_remove]
+  test_data <- test_data[, !names(test_data) %in% vars_to_remove]
+}
+
+# 準備 XGBoost 的資料
+x_train <- as.matrix(train_data[, -which(names(train_data) == "class")])
+y_train <- as.numeric(train_data$class == levels(train_data$class)[2])
+x_test <- as.matrix(test_data[, -which(names(test_data) == "class")])
+y_test <- as.numeric(test_data$class == levels(test_data$class)[2])
+
+# 設置 XGBoost 參數
+params <- list(
+  objective = "binary:logistic",
+  eta = 0.1,
+  max_depth = 15,
+  min_child_weight = 1,
+  subsample = 0.8,
+  colsample_bytree = 0.8
+)
+
+# 使用 xgboost 直接訓練模型
+xgb_model <- xgboost(
+  data = x_train,
+  label = y_train,
+  params = params,
+  nrounds = 1000,
+  verbose = 0
+)
+
+# 取得特徵重要性並選擇重要特徵
+importance_matrix <- xgb.importance(feature_names = colnames(x_train), model = xgb_model)
+important_features <- importance_matrix$Feature[importance_matrix$Gain >= mean(importance_matrix$Gain)]
+cat("選擇的重要特徵：", important_features, "\n")
+
+# 用挑選出來的特徵重新建立訓練集與測試集
+x_train_reduced <- x_train[, important_features, drop = FALSE]
+x_test_reduced <- x_test[, important_features, drop = FALSE]
+
+# 重新訓練最終模型
+xgb_final <- xgboost(
+  data = x_train_reduced,
+  label = y_train,
+  params = params,
+  nrounds = 1000,
+  verbose = 0
+)
+
+# 預測
+pred_prob <- predict(xgb_final, x_test_reduced)
+pred_binary <- ifelse(pred_prob > 0.5, levels(df$class)[2], levels(df$class)[1])
+pred_binary <- factor(pred_binary, levels = levels(df$class))
+
+# 混淆矩陣
+conf_matrix <- confusionMatrix(pred_binary, test_data$class)
+print(conf_matrix)
+
+# 顯示最終重要特徵
+final_importance <- xgb.importance(feature_names = colnames(x_train_reduced), model = xgb_final)
+final_importance <- final_importance[final_importance$Gain >= mean(final_importance$Gain), ]
+print(final_importance)
+
+accuracy <- conf_matrix$overall["Accuracy"]
+cat("預測準確率：", round(accuracy * 100, 2), "%\n")
+```
+首先，我們使用XGBoost進行初步模型訓練，並根據特徵重要性來選擇對模型效果影響最大的特徵。通過對初步模型的分析，我們篩選出高於平均的重要特徵，並使用這些特徵來建立最終的訓練集。
+我們將資料劃分訓練集與測試集（70% 訓練 / 30% 測試）
+在訓練集上，我們使用5折交叉驗證，並以ROC指標來選擇最佳模型。最終，我們的最佳模型達到了最佳ROC值為0.8321911，顯示該模型在訓練集對分類任務的預測表現。
+這次模型在測試集上的準確率僅為 49.02 %，顯著低於無資訊率No Information Rate（54.9%），且 p 值（0.8377  > 0.05）顯示模型表現與隨機猜測並無顯著差異。
+
+
+
+
+```{python}
+#| label: 隨機森林模型
+#| colab: [object Object]
+
+# read CSV
+df = pd.read_csv("C:/Users/user/Downloads/processed_data1.csv")
+
+# define X and y
+X = df.drop(columns=['class'])  # feature
+y = df['class']                 # target
+
+# ensure that all is float
+X = X.astype(float)
+
+# split the train test data
+X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.15, random_state=66)
+
+# make a randomforest model
+model = RandomForestClassifier(n_estimators=8500, random_state=66)
+
+# train the model
+model.fit(X_train, y_train)
+
+# predict!
+y_pred = model.predict(X_test)
+
+# calculating the accuracy
+accuracy = accuracy_score(y_test, y_pred)
+print(f"預測準確度: {accuracy:.4f}")
+```
+使用RandomForest進行模型訓練，並將資料劃分訓練集與測試集（85% 訓練 / 15% 測試）
+這次模型在測試集上的準確率為 69.23%。
+
+
+```{python}
+#| label: 進階隨機森林模型
+
+# read CSV
+df = pd.read_csv("C:/Users/user/Downloads/processed_data1.csv")
+
+# define X and y
+X = df.drop(columns=['class']).astype(float)
+y = df['class']
+
+# make an advanced randomforest model
+model = RandomForestClassifier(
+        n_estimators=8000,  # 樹的數量
+        max_depth=400,  # 限制樹的最大深度
+        min_samples_split=50,  # 節點分裂所需的最小樣本數
+        min_samples_leaf=50,  # 葉子節點的最小樣本數
+        max_features='sqrt',  # 每次分裂考慮的特徵數
+        random_state=66,
+)
+
+# 5-fold cross-validation
+scores = cross_val_score(model, X, y, cv=5, scoring='accuracy')
+
+# print the score
+print(f"輕量化隨機森林 5 折交叉驗證準確度: {scores.max():.4f} (±{scores.std():.4f})")
+```
+使用進階版RandomForest進行模型訓練，增加了更多參數的調整，並進行5-fold cross-validation。
+這次模型在測試集上的準確率為 57.14%。
+
+
+```{python}
+#| label: 邏輯回歸模型
+
+# read CSV
+df = pd.read_csv("C:/Users/user/Downloads/processed_data1.csv")
+
+# define X and y
+X = df.drop(columns=['class']).astype(float)
+y = df['class']
+
+# make a LogisticRegression model
+model = LogisticRegression(
+        max_iter=10000,  # 最大迭代次數
+        random_state=66)
+
+# 5-fold cross-validation
+scores = cross_val_score(model, X, y, cv=5, scoring='accuracy')
+
+# print the score
+print(f"邏輯回歸 5 折交叉驗證準確度: {scores.max():.4f} (±{scores.std():.4f})")
+```
+使用邏輯回歸模型進行訓練，並進行5-fold cross-validation。
+這次模型在測試集上的準確率為 61.76%。
+
+
+```{python}
+#| label: 進階邏輯回歸模型
+import pandas as pd
+from sklearn.model_selection import cross_val_score
+from sklearn.linear_model import LogisticRegression
+
+# read CSV
+df = pd.read_csv("C:/Users/user/Downloads/processed_data1.csv")
+
+# define X and y
+X = df.drop(columns=['class']).astype(float)
+y = df['class']
+
+# make a advanced LogisticRegression model
+model = LogisticRegression(
+        C=1.0,  # 正則化強度的倒數，較小的 C 表示更強的正則化
+        penalty='l2',  # 使用 L2 正則化
+        solver='liblinear',  # 支援 L1 和 L2 正則化的求解器
+        max_iter=25000,  # 最大迭代次數
+        tol=1e-4,  # 收斂容差
+        random_state=66
+)
+
+# 5-fold cross-validation
+scores = cross_val_score(model, X, y, cv=5, scoring='accuracy')
+
+# print the score
+print(f"邏輯回歸 5 折交叉驗證準確度: {scores.max():.4f} (±{scores.std():.4f})")
+```
+使用進階版邏輯回歸模型進行訓練，增加了更多參數的調整，並進行5-fold cross-validation。
+這次模型在測試集上的準確率也一樣為 61.76%。
+
+```{python}
+#| label: xgboost模型
+
+# read CSV
+df = pd.read_csv("C:/Users/user/Downloads/processed_data1.csv")
+
+# define X and y
+X = df.drop(columns=['class']).astype(float)
+y = df['class']
+
+# split the train test data
+X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=66)
+
+# make a advanced LogisticRegression model
+model = XGBClassifier(
+        n_estimators=2500,  # 樹的數量
+        learning_rate=0.023,  # 學習率
+        max_depth=50,  # 最大深度
+        min_child_weight=13, # 葉子節點的最小權重和
+        gamma=0.206633,  # 分裂所需的損失減少量
+        subsample=0.91541,  # 每次迭代使用的樣本比例
+        colsample_bytree=0.89358994,  # 每次分裂使用的特徵比例
+        reg_alpha=1.26776,  # L1 正則化
+        reg_lambda=7.784308,  # L2 正則化
+        random_state=66,
+        eval_metric='logloss',  # 評估指標
+        n_jobs=-1  # 使用所有可用核心
+    )
+
+# 5-fold cross-validation
+scores = cross_val_score(model, X, y, cv=5, scoring='accuracy')
+
+# print the score
+print(f"xgboost 5 折交叉驗證準確度: {scores.max():.4f} (±{scores.std():.4f})")
+```
+使用xgboost模型進行訓練，並將資料劃分訓練集與測試集（80% 訓練 / 20% 測試），再進行5-fold cross-validation。
+這次模型在測試集上的準確率為 77.14%。
+
+
+```{python}
+#| label: lightGBM模型
+
+# read CSV
+df = pd.read_csv("C:/Users/user/Downloads/processed_data1.csv")
+
+# define X and y
+X = df.drop(columns=['class']).astype(float)
+y = df['class']
+
+# split the train test data
+X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=66)
+
+# make a advanced LogisticRegression model
+model = LGBMClassifier(
+        n_estimators=2500,  # 樹的數量
+        learning_rate=0.02,  # 學習率
+        num_leaves=100,  # 每棵樹的最大葉子數
+        max_depth=80,  # 最大深度
+        min_child_samples=30,  # 葉子節點的最小樣本數
+        subsample=0.8,  # 每次迭代使用的樣本比例
+        colsample_bytree=0.8,  # 每次分裂使用的特徵比例
+        reg_alpha=0.1,  # L1 正則化
+        reg_lambda=0.1,  # L2 正則化
+        random_state=66,
+        verbose=-1  # 減少日誌輸出
+    )
+
+# 5-fold cross-validation
+scores = cross_val_score(model, X, y, cv=5, scoring='accuracy')
+
+# print the score
+print(f"lightGBM 5 折交叉驗證準確度: {scores.mean():.4f} (±{scores.std():.4f})")
+```
+使用lightGBM模型進行訓練，並將資料劃分訓練集與測試集（80% 訓練 / 20% 測試），再進行5-fold cross-validation。
+這次模型在測試集上的準確率為 55.51%。
+
+
+```{python}
+#| label: DNN
+#| output: false
+#| results: hide
+
+import pandas as pd
+from sklearn.model_selection import train_test_split
+from sklearn.preprocessing import StandardScaler
+from tensorflow import keras
+from tensorflow.keras import layers, regularizers
+from sklearn.decomposition import PCA  # 用於降維
+
+# read CSV
+df = pd.read_csv("C:/Users/user/Downloads/processed_data1.csv")
+
+# define X and y
+X = df.drop(columns=['class'])  
+y = df['class']  
+
+# StandardScaler
+scaler = StandardScaler()
+X_scaled = scaler.fit_transform(X)
+
+# Dimensionality reduction (reducing the number of features) 
+pca = PCA(n_components=25)  # Keep 25 components
+X_scaled = pca.fit_transform(X_scaled)
+print(f"PCA ：{sum(pca.explained_variance_ratio_):.4f}")
+
+# split the train test data
+X_train, X_test, y_train, y_test = train_test_split(X_scaled, y, test_size=0.2, random_state=66)
+
+# make a dnn model
+model = keras.Sequential([
+    layers.Dense(64, activation='relu', kernel_regularizer=regularizers.l2(0.01), input_shape=(X_train.shape[1],)),
+    layers.BatchNormalization(),
+    layers.Dropout(0.5),
+    
+    layers.Dense(64, activation='relu', kernel_regularizer=regularizers.l2(0.01)),
+    layers.BatchNormalization(),
+    layers.Dropout(0.5),
+    
+    layers.Dense(64, activation='relu', kernel_regularizer=regularizers.l2(0.01)),
+    layers.BatchNormalization(),
+
+    layers.Dense(32, activation='relu', kernel_regularizer=regularizers.l2(0.01)),
+    layers.BatchNormalization(),
+    
+    layers.Dense(32, activation='relu', kernel_regularizer=regularizers.l2(0.01)),
+    layers.BatchNormalization(),
+    
+    layers.Dense(16, activation='relu', kernel_regularizer=regularizers.l2(0.01)),
+    layers.BatchNormalization(),
+
+    layers.Dense(16, activation='relu', kernel_regularizer=regularizers.l2(0.01)),
+    layers.BatchNormalization(),
+
+    layers.Dense(1, activation='sigmoid')  # binary question can use sigmoid activation function
+])
+
+# use Adam optimizer and setting learning rate
+optimizer = keras.optimizers.Adam(learning_rate=0.01)
+
+# compile the model
+model.compile(optimizer=optimizer, loss='binary_crossentropy', metrics=['accuracy'])
+
+# define the reduce function
+reduce_lr = keras.callbacks.ReduceLROnPlateau(monitor='val_loss', factor=0.8, patience=10, min_lr=1e-6)
+early_stopping = keras.callbacks.EarlyStopping(monitor='val_loss', patience=150, restore_best_weights=True)
+
+# train the model
+history = model.fit(X_train, y_train,
+                    epochs=800, batch_size=12,
+                    validation_data=(X_test, y_test),
+                    callbacks=[early_stopping, reduce_lr],
+                    verbose=2)
+```
+使用八層的深度學習模型，加入學習率調整跟早停機制來去進行訓練，先通過標準化跟PCA降維做資料前處理，並將資料劃分訓練集與測試集（80% 訓練 / 20% 測試）。
+
+
+```{python}
+#| label: DNN-results
+#| echo: false
+# evaluate the model
+loss, acc = model.evaluate(X_test, y_test, verbose=0)
+print(f"\n 進一步改進後的 Deep Learning Accuracy: {acc:.4f}")
+
+# create the plot
+# find loss & accuracy
+train_loss = history.history['loss']
+val_loss = history.history['val_loss']
+train_acc = history.history['accuracy']
+val_acc = history.history['val_accuracy']
+
+# draw the loss curve
+plt.figure(figsize=(12, 5))
+plt.subplot(1, 2, 1)
+plt.plot(train_loss, label='Training Loss')
+plt.plot(val_loss, label='Validation Loss')
+plt.xlabel('Epochs')
+plt.ylabel('Loss')
+plt.title('Loss Curve')
+plt.legend()
+
+# draw the accuracy curve
+plt.subplot(1, 2, 2)
+plt.plot(train_acc, label='Training Accuracy')
+plt.plot(val_acc, label='Validation Accuracy')
+plt.xlabel('Epochs')
+plt.ylabel('Accuracy')
+plt.title('Accuracy Curve')
+plt.legend()
+
+plt.show()
+```
+
+
+
+```{python}
+#| label: DNN-improved
+#| output: false
+#| results: hide
+
+import pandas as pd
+import numpy as np
+from sklearn.model_selection import train_test_split
+from sklearn.preprocessing import StandardScaler
+from sklearn.decomposition import PCA
+from tensorflow import keras
+from tensorflow.keras import layers, regularizers
+from sklearn.utils import class_weight
+
+# 讀取資料
+df = pd.read_csv("C:/Users/user/Downloads/processed_data1.csv")
+X = df.drop(columns=['class'])
+y = df['class']
+
+# 檢查類別分佈
+print("類別分佈：")
+print(y.value_counts())
+
+# 標準化
+scaler = StandardScaler()
+X_scaled = scaler.fit_transform(X)
+
+# PCA 降維
+pca = PCA(n_components=35)  # 增加到 40 個主成分
+X_scaled = pca.fit_transform(X_scaled)
+print(f"PCA 解釋方差比例總和：{sum(pca.explained_variance_ratio_):.4f}")
+
+# 分割資料：Training、Validation、Test
+X_temp, X_test, y_temp, y_test = train_test_split(X_scaled, y, test_size=0.1, random_state=66)
+X_train, X_val, y_train, y_val = train_test_split(X_temp, y_temp, test_size=0.15, random_state=66)
+
+print(f"Training set: {X_train.shape[0]} samples")
+print(f"Validation set: {X_val.shape[0]} samples")
+print(f"Test set: {X_test.shape[0]} samples")
+
+# 定義模型
+model = keras.Sequential([
+    layers.Dense(64, activation='relu', kernel_regularizer=regularizers.l2(0.005), input_shape=(X_train.shape[1],)),
+    layers.BatchNormalization(),
+    layers.Dropout(0.2),
+    
+    layers.Dense(64, activation='relu', kernel_regularizer=regularizers.l2(0.005)),
+    layers.BatchNormalization(),
+    layers.Dropout(0.2),
+    
+    layers.Dense(64, activation='relu', kernel_regularizer=regularizers.l2(0.005)),
+    layers.BatchNormalization(),
+    layers.Dropout(0.2),  
+    
+    layers.Dense(32, activation='relu', kernel_regularizer=regularizers.l2(0.005)),
+    layers.BatchNormalization(),
+    
+    layers.Dense(32, activation='relu', kernel_regularizer=regularizers.l2(0.005)),
+    layers.BatchNormalization(),
+    
+    layers.Dense(16, activation='relu', kernel_regularizer=regularizers.l2(0.005)),
+    layers.BatchNormalization(),
+    
+    layers.Dense(1, activation='sigmoid')
+])
+
+# 優化器和編譯
+optimizer = keras.optimizers.Adam(learning_rate=0.01)
+model.compile(optimizer=optimizer, loss='binary_crossentropy', metrics=['accuracy'])
+
+# 計算類別權重
+class_weights = class_weight.compute_class_weight('balanced', classes=np.unique(y_train), y=y_train)
+class_weight_dict = dict(enumerate(class_weights))
+
+# 定義回調函數
+reduce_lr = keras.callbacks.ReduceLROnPlateau(monitor='val_loss', factor=0.6, patience=15, min_lr=1e-6)
+early_stopping = keras.callbacks.EarlyStopping(monitor='val_loss', patience=250, restore_best_weights=True)
+
+# 訓練模型
+history = model.fit(X_train, y_train,
+                    epochs=900, batch_size=12,
+                    validation_data=(X_val, y_val),
+                    callbacks=[early_stopping, reduce_lr],
+                    class_weight=class_weight_dict,
+                    verbose=2)
+```
+使用七層的深度學習模型，進一步調整學習率調整跟早停機制的參數來去進行訓練，先通過標準化跟PCA降維做資料前處理，並將資料分割成Training、Validation、Test去進行後續預測任務。
+
+```{python}
+#| label: DNN-improved-results
+#| echo: false
+# 評估 Test 集
+test_loss, test_accuracy = model.evaluate(X_test, y_test, verbose=0)
+print(f"Test Accuracy: {test_accuracy:.4f}")
+
+# 繪製訓練曲線
+import matplotlib.pyplot as plt
+
+plt.figure(figsize=(12, 4))
+
+plt.subplot(1, 2, 1)
+plt.plot(history.history['loss'], label='Training Loss')
+plt.plot(history.history['val_loss'], label='Validation Loss')
+plt.title('Loss Curve')
+plt.xlabel('Epochs')
+plt.ylabel('Loss')
+plt.legend()
+
+plt.subplot(1, 2, 2)
+plt.plot(history.history['accuracy'], label='Training Accuracy')
+plt.plot(history.history['val_accuracy'], label='Validation Accuracy')
+plt.title('Accuracy Curve')
+plt.xlabel('Epochs')
+plt.ylabel('Accuracy')
+plt.legend()
+
+plt.tight_layout()
+plt.show()
+```
+
+
+```{python}
+#| label: DNN-improved22
+#| output: false
+
+import pandas as pd
+import numpy as np
+from sklearn.model_selection import train_test_split, StratifiedKFold
+from sklearn.preprocessing import StandardScaler
+from sklearn.decomposition import PCA
+from tensorflow import keras
+from tensorflow.keras import layers, regularizers
+from sklearn.utils import class_weight
+import matplotlib.pyplot as plt
+
+# 讀取資料
+df = pd.read_csv("C:/Users/user/Downloads/processed_data1.csv")
+X = df.drop(columns=['class'])
+y = df['class']
+
+# 檢查類別分佈
+print("類別分佈：")
+print(y.value_counts())
+
+# 標準化
+scaler = StandardScaler()
+X_scaled = scaler.fit_transform(X)
+
+# PCA 降維
+pca = PCA(n_components=0.85)  # 保留 80% 方差
+X_scaled = pca.fit_transform(X_scaled)
+print(f"PCA 主成分數量：{X_scaled.shape[1]}")
+print(f"PCA 解釋方差比例總和：{sum(pca.explained_variance_ratio_):.4f}")
+
+# 使用 10 折交叉驗證
+skf = StratifiedKFold(n_splits=8, shuffle=True, random_state=66)
+test_accuracies = []
+val_accuracies = []
+
+for fold, (train_idx, test_idx) in enumerate(skf.split(X_scaled, y)):
+    print(f"\nFold {fold + 1}/10")
+    
+    # 分割 Training+Validation 和 Test 集
+    X_train_val, X_test, y_train_val, y_test = X_scaled[train_idx], X_scaled[test_idx], y[train_idx], y[test_idx]
+    
+    # 再分割 Training 和 Validation 集
+    X_train, X_val, y_train, y_val = train_test_split(X_train_val, y_train_val, test_size=0.15/0.85, random_state=66)
+    
+    print(f"Training set: {X_train.shape[0]} samples")
+    print(f"Validation set: {X_val.shape[0]} samples")
+    print(f"Test set: {X_test.shape[0]} samples")
+    print("Validation 集類別分佈：")
+    print(pd.Series(y_val).value_counts())
+    print("Test 集類別分佈：")
+    print(pd.Series(y_test).value_counts())
+
+    # 定義模型
+    model = keras.Sequential([
+        layers.Dense(64, activation='relu', kernel_regularizer=regularizers.l2(0.001), input_shape=(X_train.shape[1],)),
+        layers.BatchNormalization(),
+        layers.Dropout(0.05),
+
+        layers.Dense(64, activation='relu', kernel_regularizer=regularizers.l2(0.001)),
+        layers.BatchNormalization(), 
+        
+        layers.Dense(32, activation='relu', kernel_regularizer=regularizers.l2(0.001)),
+        layers.BatchNormalization(),    
+        
+        layers.Dense(32, activation='relu', kernel_regularizer=regularizers.l2(0.001)),
+        layers.BatchNormalization(),
+        
+        layers.Dense(16, activation='relu', kernel_regularizer=regularizers.l2(0.001)),
+        layers.BatchNormalization(),
+        
+        layers.Dense(16, activation='relu', kernel_regularizer=regularizers.l2(0.001)),
+        layers.BatchNormalization(),   
+        
+        layers.Dense(1, activation='sigmoid')
+    ])
+
+    # 優化器和編譯
+    optimizer = keras.optimizers.Adam(learning_rate=0.02)
+    model.compile(optimizer=optimizer, loss='binary_crossentropy', metrics=['accuracy'])
+
+    # 計算類別權重
+    class_weights = class_weight.compute_class_weight('balanced', classes=np.unique(y_train), y=y_train)
+    class_weight_dict = dict(enumerate(class_weights))
+
+    # 定義回調
+    reduce_lr = keras.callbacks.ReduceLROnPlateau(monitor='val_loss', factor=0.6, patience=12, min_lr=1e-6)
+    early_stopping = keras.callbacks.EarlyStopping(monitor='val_loss', patience=50, restore_best_weights=True)
+
+    # 訓練模型
+    history = model.fit(X_train, y_train,
+                        epochs=900, batch_size=16,
+                        validation_data=(X_val, y_val),
+                        callbacks=[early_stopping, reduce_lr],
+                        class_weight=class_weight_dict,
+                        verbose=2)
+
+    # 評估 Validation 集
+    val_loss, val_accuracy = model.evaluate(X_val, y_val, verbose=0)
+    val_accuracies.append(val_accuracy)
+    print(f"Fold {fold + 1} Validation Accuracy: {val_accuracy:.4f}")
+
+    # 評估 Test 集
+    test_loss, test_accuracy = model.evaluate(X_test, y_test, verbose=0)
+    test_accuracies.append(test_accuracy)
+    print(f"Fold {fold + 1} Test Accuracy: {test_accuracy:.4f}")
+
+    # 檢查預測分佈
+    y_pred = (model.predict(X_test, verbose=0) > 0.5).astype(int)
+    print(f"Fold {fold + 1} Test 集預測類別分佈：")
+    print(pd.Series(y_pred.flatten()).value_counts())
+
+# 計算平均準確率
+print(f"\n平均 Validation Accuracy: {np.mean(val_accuracies):.4f} (±{np.std(val_accuracies):.4f})")
+print(f"平均 Test Accuracy: {np.mean(test_accuracies):.4f} (±{np.std(test_accuracies):.4f})")
+```
+使用六層的深度學習模型，進一步調整學習率調整跟早停機制的參數來去進行訓練，先通過標準化跟PCA降維做資料前處理，並將資料分割成Training、Validation、Test去進行後續預測任務。
+
+
+```{python}
+#| label: DNN-improved22-results
+#| echo: false
+
+# 評估 Validation 集
+val_loss, val_accuracy = model.evaluate(X_val, y_val, verbose=0)
+val_accuracies.append(val_accuracy)
+print(f"Fold {fold + 1} Validation Accuracy: {val_accuracy:.4f}")
+
+# 評估 Test 集
+test_loss, test_accuracy = model.evaluate(X_test, y_test, verbose=0)
+test_accuracies.append(test_accuracy)
+print(f"Fold {fold + 1} Test Accuracy: {test_accuracy:.4f}")
+
+# 檢查預測分佈
+y_pred = (model.predict(X_test, verbose=0) > 0.5).astype(int)
+print(f"Fold {fold + 1} Test 集預測類別分佈：")
+print(pd.Series(y_pred.flatten()).value_counts())
+
+# 計算平均準確率
+print(f"\n平均 Validation Accuracy: {np.mean(val_accuracies):.4f} (±{np.std(val_accuracies):.4f})")
+print(f"平均 Test Accuracy: {np.mean(test_accuracies):.4f} (±{np.std(test_accuracies):.4f})")
+
+# 繪製訓練曲線（最後一折）
+plt.figure(figsize=(12, 4))
+
+plt.subplot(1, 2, 1)
+plt.plot(history.history['loss'], label='Training Loss')
+plt.plot(history.history['val_loss'], label='Validation Loss')
+plt.title('Loss Curve')
+plt.xlabel('Epochs')
+plt.ylabel('Loss')
+plt.legend()
+
+plt.subplot(1, 2, 2)
+plt.plot(history.history['accuracy'], label='Training Accuracy')
+plt.plot(history.history['val_accuracy'], label='Validation Accuracy')
+plt.title('Accuracy Curve')
+plt.xlabel('Epochs')
+plt.ylabel('Accuracy')
+plt.legend()
+
+plt.tight_layout()
+plt.show()
+```
+
+
+
+
+底下為OPTUNA超參數優化的部分，可自訂範圍去找尋更加的參數組合，進一步提升模型的效能表現。
+```{python}
+# import optuna
+# import pandas as pd
+# import numpy as np
+# from sklearn.model_selection import train_test_split, cross_val_score
+# from sklearn.ensemble import RandomForestClassifier
+# from sklearn.linear_model import LogisticRegression
+# from xgboost import XGBClassifier
+# from lightgbm import LGBMClassifier
+# from sklearn.metrics import accuracy_score
+# import textwrap
+# 
+# # 讀取資料
+# df = pd.read_csv("C:/Users/user/Downloads/processed_data1.csv")
+# X = df.drop(columns=['class']).astype(float)
+# y = df['class']
+# X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=66)
+# 
+# # 自定義列印函數，自動換行
+# def print_wrapped(text, width=100):
+#     wrapped_text = textwrap.fill(text, width=width)
+#     print(wrapped_text)
+# 
+# # 定義每個模型的 Optuna 目標函數
+# def optimize_model(trial, model_name):
+#     if model_name == 'RandomForest':
+#         params = {
+#             'n_estimators': trial.suggest_int('n_estimators', 50, 5000),
+#             'max_depth': trial.suggest_int('max_depth', 3, 40),
+#             'min_samples_split': trial.suggest_int('min_samples_split', 2, 40),
+#             'min_samples_leaf': trial.suggest_int('min_samples_leaf', 1, 40),
+#             'max_features': trial.suggest_categorical('max_features', ['sqrt', 'log2', None]),
+#             'random_state': 66
+#         }
+#         model = RandomForestClassifier(**params)
+#     
+#     elif model_name == 'LogisticRegression':
+#         params = {
+#             'C': trial.suggest_float('C', 0.001, 100.0, log=True),
+#             'penalty': trial.suggest_categorical('penalty', ['l1', 'l2']),
+#             'solver': trial.suggest_categorical('solver', ['liblinear', 'saga']),
+#             'max_iter': 6000,
+#             'tol': trial.suggest_float('tol', 1e-6, 1e-2, log=True),
+#             'random_state': 66
+#         }
+#         model = LogisticRegression(**params)
+#     
+#     elif model_name == 'XGBoost':
+#         params = {
+#             'n_estimators': trial.suggest_int('n_estimators', 50, 5000),
+#             'learning_rate': trial.suggest_float('learning_rate', 0.005, 0.5, log=True),
+#             'max_depth': trial.suggest_int('max_depth', 3, 55),
+#             'min_child_weight': trial.suggest_int('min_child_weight', 1, 55),
+#             'gamma': trial.suggest_float('gamma', 0, 1.0),
+#             'subsample': trial.suggest_float('subsample', 0.5, 1.0),
+#             'colsample_bytree': trial.suggest_float('colsample_bytree', 0.5, 1.0),
+#             'reg_alpha': trial.suggest_float('reg_alpha', 0, 10.0),
+#             'reg_lambda': trial.suggest_float('reg_lambda', 0, 10.0),
+#             'random_state': 66,
+#             'eval_metric': 'logloss',
+#             'n_jobs': -1
+#         }
+#         model = XGBClassifier(**params)
+#     
+#     elif model_name == 'LightGBM':
+#         params = {
+#             'n_estimators': trial.suggest_int('n_estimators', 50, 5000),
+#             'learning_rate': trial.suggest_float('learning_rate', 0.005, 0.5, log=True),
+#             'num_leaves': trial.suggest_int('num_leaves', 10, 100),
+#             'max_depth': trial.suggest_int('max_depth', 3, 55),
+#             'min_child_samples': trial.suggest_int('min_child_samples', 5, 50),
+#             'subsample': trial.suggest_float('subsample', 0.5, 1.0),
+#             'colsample_bytree': trial.suggest_float('colsample_bytree', 0.5, 1.0),
+#             'reg_alpha': trial.suggest_float('reg_alpha', 0, 10.0),
+#             'reg_lambda': trial.suggest_float('reg_lambda', 0, 10.0),
+#             'random_state': 66,
+#             'verbose': -1
+#         }
+#         model = LGBMClassifier(**params)
+#     
+#     scores = cross_val_score(model, X, y, cv=5, scoring='accuracy')
+#     return scores.max()
+# 
+# # 執行 Optuna 調參並儲存結果
+# def run_optuna(model_name, n_trials=600):
+#     study = optuna.create_study(direction='maximize')
+#     study.optimize(lambda trial: optimize_model(trial, model_name), n_trials=n_trials)
+#     return study.best_params, study.best_value
+# 
+# # 儲存所有模型的結果
+# models = ['RandomForest', 'LogisticRegression', 'XGBoost', 'LightGBM']
+# results = {}
+# 
+# # 對每個模型進行調參
+# for model in models:
+#     best_params, best_value = run_optuna(model, n_trials=600)
+#     results[model] = {'params': best_params, 'accuracy': best_value}
+# 
+# # 先列印所有模型的準確度
+# print("=== 所有模型 5 折交叉驗證準確度 ===")
+# for model in models:
+#     print(f"{model}: {results[model]['accuracy']:.4f}")
+#     print()  # 增加空行
+# 
+# # 再列印所有模型的參數
+# print("=== 所有模型最佳參數 ===")
+# for model in models:
+#     params_text = f"{model} 最佳參數: {results[model]['params']}"
+#     print_wrapped(params_text, width=80)
+#     print()  # 增加空行
+
+```
+
+
